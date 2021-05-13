@@ -1,0 +1,13 @@
+STEP 1:
+GET https://api.mangadex.org/manga/{id}
+
+STEP 2:
+GET https://api.mangadex.org/chapter/{id from the data field of precvious call}
+
+STEP 3: 
+GET https://api.mangadex.org/at-home/server/{id from data of previous field}
+
+STEP 4:
+GET {base url}/data/{hash from step 2}/{filenames from step 2}
+
+READ manga/333d936d-2eab-461e-99cc-488e4a65e013
