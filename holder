@@ -8,7 +8,7 @@ STEP 3:
 GET https://api.mangadex.org/at-home/server/{id from data of previous field}
 
 STEP 4:
-GET {base url}/data/{hash from step 2}/{filenames from step 2}
+GET {base url from step 3}/data/{hash from step 2}/{filenames from step 2}
 
 SAMPLE:
 https://reh3tgm2rs8sr.xnvda7fch4zhr.mangadex.network//4Oqru7yO_WZHzQiAqf2oSQ9cHtxl-p9ueo6ZuyX4mdVGJjx-rVNE2WjaLJlDF-XkAAJLtw3j6AGRN2pVM49nBEPVCq7GxCkQKcgo17LZX7PnFhqENaU_HymWe4-4PURCmom63ziQ6p9tGqzF5JRjIRHTIZCx4Qa4Zj5ollwqy48y_OPrSMmvD4LnY55qjrzW/data/e18ce09df62c7c937eef89e13d8ae8cd/t1-9d1972ef0b73f2531ad53787acadd6778794b26669feb6803fb503404a7ee32f.jpg
