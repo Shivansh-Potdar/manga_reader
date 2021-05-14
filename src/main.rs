@@ -53,14 +53,15 @@ mod manga {
         println!("End of hashcode Code");
 
         let mut chaps: HashMap<String, Vec<String>> = HashMap::new();
-        let mut _final_chaps: Vec<String> = Vec::new(); 
+        let mut final_id: Vec<String> = Vec::new();
 
         for (id, base) in baser.iter() {
-            chaps = get_chapters(id.to_string());
+            get_chapters(id.to_string(), &mut chaps);
         }
 
         for (key, val) in chaps.iter(){
-            println!("id: {}\n pages: {:?}", key, val);
+            println!("url: \n{},\n pages: \n {:?}", key, val);
+            final_id.push(key.to_string());
         }
 
         Ok(())
@@ -122,7 +123,7 @@ mod manga {
      * return a HashMap with the id String and the Vec<String>
      * i.e. 
      */
-    fn get_chapters(c: String) -> HashMap<String, Vec<String>>{
+    fn get_chapters(c: String, h: &mut HashMap<String, Vec<String>>){
         let res = reqwest::blocking::get(&c).unwrap();
         let body = res.text().unwrap();
 
@@ -132,15 +133,12 @@ mod manga {
             .split(",").map(|s| s.to_string())
             .collect();
 
-        let mut new_hash: HashMap<String, Vec<String>> = HashMap::new();
-        new_hash.insert(c, chaps);
-
-        new_hash
+        h.insert(c, chaps);
     }
 }
 
-//Get the chapters which come as an array in a string use a vec<struct> to map content
-//start making base_url of hash and base together to query  for chapters
-//push id and base to vec<string> for querying
-//match hashmap id from get_chapters against id from chapter_ids
-//change get_chapter to void where values are added to the hashmap instead of setting it
+//match final against hasmmap chaps and add corresponding url to assets/chapter_list.txt
+
+mod tui{
+    
+}
