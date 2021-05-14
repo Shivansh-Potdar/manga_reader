@@ -52,9 +52,15 @@ mod manga {
 
         println!("End of hashcode Code");
 
+        let mut chaps: Vec<String> = Vec::new();
+
         for (id, base) in baser.iter() {
-            get_chapters(id.to_string());
+            chaps = get_chapters(id.to_string());
             break;
+        }
+
+        for i in chaps{
+            println!("{}", i);
         }
 
         Ok(())
@@ -111,14 +117,21 @@ mod manga {
         Ok(base_url)
     }
 
-    fn get_chapters(c: String) {
+    fn get_chapters(c: String) -> Vec<String>{
         let res = reqwest::blocking::get(c).unwrap();
         let body = res.text().unwrap();
 
         let v: Value = serde_json::from_str(&body).unwrap();
 
-        println!("{:#?}", v["data"]["attributes"]["data"]);
+        let chaps: Vec<String> = v["data"]["attributes"]["data"].to_string().as_str()
+            .split(",").map(|s| s.to_string())
+            .collect();
+
+        chaps
     }
 }
 
 //Get the chapters which come as an array in a string use a vec<struct> to map content
+//start making base_url of hash and base together to query  for chapters
+//push id and base to vec<string> for querying
+//match hashmap id from get_chapters against id from chapter_ids
