@@ -39,11 +39,6 @@ mod manga {
         }
     }
 
-    struct ChapterNeeds{
-        id: String,
-        hash: String,
-    }
-
     #[derive(Debug, Deserialize)]
     struct DataHolder {
         id: String,
@@ -58,9 +53,10 @@ mod manga {
         let v: Value = serde_json::from_str(&body[..])?;
         let rel_val: String = v["relationships"].to_string();
 
-        let chapter_links: LinkedList<String> = get_chapters_list(rel_val);
+        let chapter_links: LinkedList<String> = get_chapters_id(rel_val);
 
         let mut hasher: HashMap<String, String> = HashMap::new();
+        let mut baser: HashMap<String, String> = HashMap::new();
         
         for i in chapter_links.iter() {
             let copy_hash: HashMap<String, String> = get_hash_id_map(i.to_string())?;
@@ -70,7 +66,14 @@ mod manga {
         };
 
         for (key, val) in hasher.iter() {
-            println!("id_is: {} hash_is: {}", key, val);
+            let mut base_url: String = get_base_url(key.to_string())?.to_string().to_owned();
+            base_url.push_str(val);
+
+            base_url = base_url.replace('"', "");
+
+            println!("{}", base_url);
+
+            baser.insert(key.to_string(), base_url);
         }
 
         println!("End of hashcode Code");
@@ -78,7 +81,7 @@ mod manga {
         Ok(())
     }
 
-    pub fn get_chapters_list(data: String) -> LinkedList<String>{
+    pub fn get_chapters_id(data: String) -> LinkedList<String>{
         let v: Vec<DataHolder> = serde_json::from_str(data.as_str()).expect("You doof that ain't no JSON");
         let mut linked_list: LinkedList<String> = LinkedList::new();
 
@@ -114,4 +117,18 @@ mod manga {
         Ok(my_map)
     }
 
+    fn get_base_url(id: String) -> Result<String, Box<dyn std::error::Error>>{
+        let mut url: String = "https://api.mangadex.org/at-home/server/".to_owned();
+        url.push_str(&id);
+
+        let res = reqwest::blocking::get(url)?;
+        let body = res.text()?;
+
+        let v: Value = serde_json::from_str(&body[..])?;
+
+        let mut base_url: String = v["baseUrl"].to_string().to_owned();
+        base_url.push_str("/data/");
+
+        Ok(base_url)
+    }
 }
