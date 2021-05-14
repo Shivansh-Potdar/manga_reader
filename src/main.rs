@@ -8,37 +8,6 @@ mod manga {
     use serde::Deserialize;
     use std::collections::LinkedList;
 
-    #[derive(Default)]
-    #[allow(dead_code)]
-    pub struct Contents{
-        id: String,
-        title: String,
-        description: String,
-        hash: String,
-        chapters: Vec<String>
-    }
-
-    /** impl fmt::Debug for Contents{
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "title:\n {},\n description:\n{}\n", self.title, self.description);
-            write!(f, "hash is yet to be set and so are the chapters")
-        }
-    } **/
-
-    impl Contents{
-        pub fn new() -> Contents {
-            Contents::default()
-        }
-
-        pub fn set(&mut self, i: String, t: String, d: String, c: Vec<String>, h: String){
-            self.id = i;
-            self.title = t;
-            self.description = d;
-            self.chapters = c;
-            self.hash = h;
-        }
-    }
-
     #[derive(Debug, Deserialize)]
     struct DataHolder {
         id: String,
@@ -73,10 +42,20 @@ mod manga {
 
             println!("{}", base_url);
 
-            baser.insert(key.to_string(), base_url);
+            let data: String = key.to_owned();
+            let mut static_url: String = "https://api.mangadex.org/chapter/".to_owned();
+
+            static_url.push_str(&data);
+
+            baser.insert(static_url, base_url);
         }
 
         println!("End of hashcode Code");
+
+        for (id, base) in baser.iter() {
+            get_chapters(id.to_string());
+            break;
+        }
 
         Ok(())
     }
@@ -131,4 +110,15 @@ mod manga {
 
         Ok(base_url)
     }
+
+    fn get_chapters(c: String) {
+        let res = reqwest::blocking::get(c).unwrap();
+        let body = res.text().unwrap();
+
+        let v: Value = serde_json::from_str(&body).unwrap();
+
+        println!("{:#?}", v["data"]["attributes"]["data"]);
+    }
 }
+
+//Get the chapters which come as an array in a string use a vec<struct> to map content
