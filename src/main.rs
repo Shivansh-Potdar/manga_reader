@@ -16,7 +16,6 @@ mod manga {
     use std::collections::LinkedList;
     use crate::tui;
 
-
     #[derive(Debug, Deserialize)]
     struct DataHolder {
         id: String,
