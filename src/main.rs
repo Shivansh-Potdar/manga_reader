@@ -24,50 +24,13 @@ mod manga {
 
         let chapter_links: LinkedList<String> = get_chapters_id(rel_val);
 
-        let mut hasher: HashMap<String, String> = HashMap::new();
-        let mut baser: HashMap<String, String> = HashMap::new();
-        
-        for i in chapter_links.iter() {
-            let copy_hash: HashMap<String, String> = get_hash_id_map(i.to_string())?;
-            for (key, val) in copy_hash.iter() {
-                hasher.insert(key.to_string(), val.to_string());
-            }
-        };
-
-        for (key, val) in hasher.iter() {
-            let mut base_url: String = get_base_url(key.to_string())?.to_string().to_owned();
-            base_url.push_str(val);
-
-            base_url = base_url.replace('"', "");
-
-            println!("{}", base_url);
-
-            let data: String = key.to_owned();
-            let mut static_url: String = "https://api.mangadex.org/chapter/".to_owned();
-
-            static_url.push_str(&data);
-
-            baser.insert(static_url, base_url);
-        }
-
-        println!("End of hashcode Code");
-
-        let mut chaps: HashMap<String, Vec<String>> = HashMap::new();
-        let mut final_id: Vec<String> = Vec::new();
-
-        for (id, base) in baser.iter() {
-            get_chapters(id.to_string(), &mut chaps);
-        }
-
-        for (key, val) in chaps.iter(){
-            println!("url: \n{},\n pages: \n {:?}", key, val);
-            final_id.push(key.to_string());
-        }
+        //insert pages here
+        let mut _pages: HashMap<String, Vec<String>> = HashMap::new();
 
         Ok(())
     }
 
-    pub fn get_chapters_id(data: String) -> LinkedList<String>{
+    fn get_chapters_id(data: String) -> LinkedList<String>{
         let v: Vec<DataHolder> = serde_json::from_str(data.as_str()).expect("You doof that ain't no JSON");
         let mut linked_list: LinkedList<String> = LinkedList::new();
 
@@ -85,7 +48,7 @@ mod manga {
         linked_list
     }
 
-    fn get_hash_id_map(c: String) ->  Result<HashMap<String, String>, Box<dyn std::error::Error>> {
+    fn get_hash_id_map(c: String) ->  Result<String, Box<dyn std::error::Error>> {
         let data: String = c.to_owned();
         let mut static_url: String = "https://api.mangadex.org/chapter/".to_owned();
 
@@ -96,11 +59,7 @@ mod manga {
 
         let v: Value = serde_json::from_str(&body)?;
 
-        let mut my_map: HashMap<String, String> = HashMap::new();
-
-        my_map.insert(c, v["data"]["attributes"]["hash"].to_string());
-
-        Ok(my_map)
+        Ok(v["data"]["attributes"]["hash"].to_string())
     }
 
     fn get_base_url(id: String) -> Result<String, Box<dyn std::error::Error>>{
@@ -119,26 +78,30 @@ mod manga {
     }
 
     /**
-     * Takes id from loop and gets the page numbers in a Vec<String>
-     * return a HashMap with the id String and the Vec<String>
-     * i.e. 
+     * Takes id url from loop and gets the page numbers in a Vec<String>
+     * return a Vec<String>
+     * @Params String &mut HashMap<String, Vec<String>>
+     * use after input from user
      */
-    fn get_chapters(c: String, h: &mut HashMap<String, Vec<String>>){
+    fn get_pages(c: String, h: &mut Vec<String>){
         let res = reqwest::blocking::get(&c).unwrap();
         let body = res.text().unwrap();
 
         let v: Value = serde_json::from_str(&body).unwrap();
 
         let chaps: Vec<String> = v["data"]["attributes"]["data"].to_string().as_str()
-            .split(",").map(|s| s.to_string())
+            .split(",").map(|s| s.to_string().replace("[", "").replace("]", ""))
             .collect();
 
-        h.insert(c, chaps);
+        for i in chaps.iter(){
+            h.push(i.to_string());
+        }
     }
 }
 
-//match final against hasmmap chaps and add corresponding url to assets/chapter_list.txt
+//add chaps name assets/chapter_list.txt
+//maybe write all base urls with pages to .txt in order and just load em up
 
-mod tui{
-    
+mod tui {
+
 }
