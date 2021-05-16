@@ -1,9 +1,8 @@
 fn main(){
-    run().unwrap();
-
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(run()).unwrap();
 }
 
-#[tokio::main]
 async fn run() -> Result<(), Box<dyn std::error::Error>>{
     manga::run().await?;
     Ok(())
@@ -24,25 +23,27 @@ mod manga {
 
     pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         println!("Running API");
-        let res = reqwest::get("https://api.mangadex.org/manga/79eb00db-ca63-46e6-8041-36f808146aaa").await?;
+        let res = reqwest::get("https://api.mangadex.org/manga/random").await?;
         let body = res.text().await?;
     
         let v: Value = serde_json::from_str(&body[..])?;
         let rel_val: String = v["relationships"].to_string();
+        let name_val: String = v["data"]["attributes"]["title"]["en"].to_string();
 
-        let chapter_links: LinkedList<String> = get_chapters_id(rel_val);
+        let chapter_links: HashMap<String, String> = get_chapters_id_name(rel_val).await;
 
         //insert pages here
         let mut _pages: HashMap<String, Vec<String>> = HashMap::new();
 
-        tui::run_load_tui(chapter_links);
+        tui::run_load_list(chapter_links, name_val);
 
         Ok(())
     }
 
-    fn get_chapters_id(data: String) -> LinkedList<String>{
+    async fn get_chapters_id_name(data: String) -> HashMap<String, String>{
         let v: Vec<DataHolder> = serde_json::from_str(data.as_str()).expect("You doof that ain't no JSON");
         let mut linked_list: LinkedList<String> = LinkedList::new();
+        let mut hash_map: HashMap<String , String> = HashMap::new();
 
         for t in v {
             match t.r#type.as_str() {
@@ -54,11 +55,26 @@ mod manga {
                 _ => println!("useless")
             }
         };
-        println!("End of Chapter LinkList Code");
-        linked_list
+
+        for i in linked_list.iter() {
+            let uri: String = "https://api.mangadex.org/chapter/".to_owned();
+            let req_url = uri + &i;
+            println!("{}", &req_url);
+            let res = reqwest::get(req_url).await.unwrap().text().await.unwrap();
+
+            let v: Value = serde_json::from_str(&res).unwrap();
+            let chap_num: String = v["data"]["attributes"]["chapter"].to_string();
+
+            println!("{}", chap_num);
+
+            hash_map.insert(i.to_string(), chap_num);
+        }
+
+        println!("End of Chapter HashMap Code");
+        hash_map
     }
 
-    fn get_hash_id_map(c: String) ->  Result<String, Box<dyn std::error::Error>> {
+    fn get_hash(c: String) ->  Result<String, Box<dyn std::error::Error>> {
         let data: String = c.to_owned();
         let mut static_url: String = "https://api.mangadex.org/chapter/".to_owned();
 
@@ -124,7 +140,7 @@ mod tui {
     // A SelectView is a scrollable list of items, from which the user can select
     // one.
 
-    pub fn run_load_tui(v: std::collections::LinkedList<String>) {
+    pub fn run_load_list(v: std::collections::HashMap<String, String>, name: String) {
         println!("Loading the interface");
         let mut select = SelectView::new()
             // Center the text horizontally
@@ -132,10 +148,7 @@ mod tui {
             // Use keyboard to jump to the pressed letters
             .autojump();
 
-        // Read the list of mangas from separate file, and fill the view with it.
-        // (We include the file at compile-time to avoid runtime read errors.)
-        //let content = include_str!("D:\\RustPr\\manga_reader\\src\\chaps.txt");
-        select.add_all_str(v.iter());
+        select.add_all_str(v.values());
 
         // Sets the callback for when "Enter" is pressed.
         select.set_on_submit(show_next_window);
@@ -157,7 +170,8 @@ mod tui {
         // (it can scroll anyway).
         siv.add_layer(
             Dialog::around(select.scrollable().fixed_size((20, 10)))
-                .title("Pick The Chapter"),
+                .title(name)
+                .button("Quit", |s| s.quit()),
         );
 
         siv.run();
@@ -165,9 +179,9 @@ mod tui {
 
     // Let's put the callback in a separate function to keep it clean,
     // but it's not required.
-    fn show_next_window(siv: &mut Cursive, city: &str) {
+    fn show_next_window(siv: &mut Cursive, chap: &str) {
         siv.pop_layer();
-        let text = format!("{} is a great manga!", city);
+        let text = format!("{} is a great chapter!", chap);
         siv.add_layer(
             Dialog::around(TextView::new(text)).button("Quit", |s| s.quit()),
         );
