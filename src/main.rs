@@ -26,7 +26,7 @@ mod manga {
 
     pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         println!("Running API");
-        let res = reqwest::get("https://api.mangadex.org/manga/random").await?;
+        let res = reqwest::get("https://api.mangadex.org/manga/7c60af75-fc54-4740-8a62-131c4776de4b").await?;
         let body = res.text().await?;
     
         let v: Value = serde_json::from_str(&body[..])?;
@@ -135,14 +135,23 @@ mod manga {
 //maybe write all base urls with pages to .txt in order and just load em up
 
 mod tui {
+    //Tui libs
     use cursive::align::HAlign;
     use cursive::event::EventResult;
     use cursive::traits::*;
     use cursive::views::{Dialog, OnEventView, SelectView, TextView};
     use cursive::Cursive;
 
+    //global variables and json
     use std::collections::BTreeMap;
     use mut_static::MutStatic;
+    use serde_json::{Value};
+
+    //threading
+    use std::thread;
+    use std::time::Duration;
+    use std::sync::mpsc;
+
 
     // We'll use a SelectView here.
     //
@@ -208,6 +217,8 @@ mod tui {
                 .button("Quit", |s| s.quit()),
         );
 
+        siv.add_global_callback('q', |s| s.quit());
+
         siv.run();
     }
 
@@ -215,13 +226,13 @@ mod tui {
     // but it's not required.
     fn show_next_window(siv: &mut Cursive, chap: &str) {
         siv.pop_layer();
-        let mut text: String = String::new();
+        let mut id: String = String::new();
 
         for (key, _val) in MATCH_AGAINST.read().unwrap().value.iter() {
             match MATCH_AGAINST.read().unwrap().value.get(key){
                 Some(&value) => {
                     if value.to_string() == String::from(chap) {
-                        text.push_str(key);
+                        id.push_str(key);
                         break;
                     }
                 },
@@ -229,11 +240,34 @@ mod tui {
             }
         }
 
+        let mut text: String = String::new();
+        let base_u = "https://api.mangadex.org/chapter/".to_string() + &id.to_string();
+
         //parse id and get deets like name and shit
+        std::fs::write("log.txt", &base_u).expect("Could not write to file, check if content is in correct format");
+
+        let (sender, reciver) = mpsc::channel::<String>();
+
+        let req_handler = thread::spawn(move ||{
+
+            let res = reqwest::blocking::get(base_u).unwrap();
+
+            let body = res.text().unwrap();
+            let v: Value = serde_json::from_str(&body[..]).unwrap();
+
+            text.push_str(&v["data"]["attributes"]["title"].to_string());
+
+            //use thread messages to do this(whats done down) instead, ref: https://doc.rust-lang.org/book/ch16-02-message-passing.html
+            //std::fs::write("chap_name.txt", text);
+
+            sender.send(text).unwrap();
+            thread::sleep(Duration::from_micros(10));
+        });
+        req_handler.join().expect("Thread couldn't be joined");
 
         siv.add_layer(
-            Dialog::around(TextView::new(text))
-            .title("Amogus")
+            Dialog::around(TextView::new(id))
+            .title(reciver.recv().unwrap())
             .button("Quit", |s| s.quit()),
         );
     }
@@ -241,3 +275,4 @@ mod tui {
 
 //show chapter name on next page
 //split id from double chapters
+//load discription and pages now
