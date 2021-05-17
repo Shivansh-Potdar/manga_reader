@@ -222,11 +222,14 @@ mod tui {
                 Some(&value) => {
                     if value.to_string() == String::from(chap) {
                         text.push_str(key);
+                        break;
                     }
                 },
                 _ => {println!("yet to find val")}
             }
         }
+
+        //parse id and get deets like name and shit
 
         siv.add_layer(
             Dialog::around(TextView::new(text))
