@@ -15,7 +15,7 @@ mod manga {
     use std::collections::{HashMap, BTreeMap};
     use serde_json::{Value};
     use serde::Deserialize;
-    use std::collections::LinkedList;
+
     use crate::tui;
 
     #[derive(Debug, Deserialize)]
@@ -26,7 +26,7 @@ mod manga {
 
     pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         println!("Running API");
-        let res = reqwest::get("https://api.mangadex.org/manga/7c60af75-fc54-4740-8a62-131c4776de4b").await?;
+        let res = reqwest::get("https://api.mangadex.org/manga/random").await?;
         let body = res.text().await?;
     
         let v: Value = serde_json::from_str(&body[..])?;
@@ -59,7 +59,16 @@ mod manga {
                     let v: Value = serde_json::from_str(&res.text().await.unwrap()).unwrap();
                     let chap_num: String = v["data"]["attributes"]["chapter"].to_string();
                     //chap_num.push_str(&v["data"]["attributes"]["title"].to_string());
-                    b_tree_map.insert((&t.id).to_string(), chap_num.replace('"', "").parse().unwrap());
+                    let mut num: String = chap_num.replace('"', "");
+                    let num_ref = &num;
+                    if num_ref.contains("."){
+                        println!("sefu desu");
+                        b_tree_map.insert((&t.id).to_string(), num.parse::<f64>().unwrap() as u32);
+                    } else {
+                        num.to_string().push_str(&".".to_owned());
+                        b_tree_map.insert((&t.id).to_string(), (&mut *num).parse::<f64>().unwrap() as u32);
+                    }
+                    
                     println!("{}", t.id);
                 },
 
@@ -228,3 +237,4 @@ mod tui {
 }
 
 //show chapter name on next page
+//split id from double chapters
