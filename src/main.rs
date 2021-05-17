@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 fn main(){
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(run()).unwrap();
@@ -129,12 +132,33 @@ mod tui {
     use cursive::views::{Dialog, OnEventView, SelectView, TextView};
     use cursive::Cursive;
 
+    use std::collections::BTreeMap;
+    use mut_static::MutStatic;
+
     // We'll use a SelectView here.
     //
     // A SelectView is a scrollable list of items, from which the user can select
     // one.
 
-    pub fn run_load_list(v: std::collections::BTreeMap<String, u32>, name: String) {
+    pub struct ValHolder {
+        value: BTreeMap<String, u32>
+    }
+
+    impl ValHolder {
+        pub fn set(val: BTreeMap<String, u32>) -> Self{
+            ValHolder{
+                value: val
+            }
+        }
+    }
+
+    lazy_static!{
+        static ref MATCH_AGAINST: MutStatic<ValHolder> = {
+            MutStatic::new()
+        };
+    }
+    
+    pub fn run_load_list(v: BTreeMap<String, u32>, name: String) {
         println!("Loading the interface");
         let mut select = SelectView::new()
             // Center the text horizontally
@@ -151,6 +175,8 @@ mod tui {
 
         // Sets the callback for when "Enter" is pressed.
         select.set_on_submit(show_next_window);
+
+        MATCH_AGAINST.set(ValHolder::set(v)).unwrap();
 
         // Let's override the `j` and `k` keys for navigation
         let select = OnEventView::new(select)
@@ -180,11 +206,25 @@ mod tui {
     // but it's not required.
     fn show_next_window(siv: &mut Cursive, chap: &str) {
         siv.pop_layer();
-        let text = format!("{} is a great chapter!", chap);
+        let mut text: String = String::new();
+
+        for (key, _val) in MATCH_AGAINST.read().unwrap().value.iter() {
+            match MATCH_AGAINST.read().unwrap().value.get(key){
+                Some(&value) => {
+                    if value.to_string() == String::from(chap) {
+                        text.push_str(key);
+                    }
+                },
+                _ => {println!("yet to find val")}
+            }
+        }
+
         siv.add_layer(
-            Dialog::around(TextView::new(text)).button("Quit", |s| s.quit()),
+            Dialog::around(TextView::new(text))
+            .title("Amogus")
+            .button("Quit", |s| s.quit()),
         );
     }
 }
 
-//get highest chapter number and spawn numbers to that and dsplay
+//show chapter name on next page
