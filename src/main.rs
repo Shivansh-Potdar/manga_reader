@@ -9,7 +9,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>>{
 }
 
 mod manga {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, BTreeMap};
     use serde_json::{Value};
     use serde::Deserialize;
     use std::collections::LinkedList;
@@ -23,14 +23,14 @@ mod manga {
 
     pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         println!("Running API");
-        let res = reqwest::get("https://api.mangadex.org/manga/random").await?;
+        let res = reqwest::get("https://api.mangadex.org/manga/7c60af75-fc54-4740-8a62-131c4776de4b").await?;
         let body = res.text().await?;
     
         let v: Value = serde_json::from_str(&body[..])?;
         let rel_val: String = v["relationships"].to_string();
         let name_val: String = v["data"]["attributes"]["title"]["en"].to_string();
 
-        let chapter_links: HashMap<String, String> = get_chapters_id_name(rel_val).await;
+        let chapter_links: BTreeMap<String, u32> = get_chapters_id_name(rel_val).await;
 
         //insert pages here
         let mut _pages: HashMap<String, Vec<String>> = HashMap::new();
@@ -40,38 +40,32 @@ mod manga {
         Ok(())
     }
 
-    async fn get_chapters_id_name(data: String) -> HashMap<String, String>{
+    async fn get_chapters_id_name(data: String) -> BTreeMap<String, u32>{
         let v: Vec<DataHolder> = serde_json::from_str(data.as_str()).expect("You doof that ain't no JSON");
-        let mut linked_list: LinkedList<String> = LinkedList::new();
-        let mut hash_map: HashMap<String , String> = HashMap::new();
+        let mut b_tree_map: BTreeMap<String , u32> = BTreeMap::new();
+
+        let client = reqwest::Client::new();
 
         for t in v {
             match t.r#type.as_str() {
                 "chapter" =>{
-                    println!("{} contains chapter", t.id);
-                    linked_list.push_back(t.id);
+                    let uri: String = "https://api.mangadex.org/chapter/".to_owned();
+                    let req_url = uri + &t.id;
+                    let res = client.get(req_url).send().await.unwrap();
+
+                    let v: Value = serde_json::from_str(&res.text().await.unwrap()).unwrap();
+                    let chap_num: String = v["data"]["attributes"]["chapter"].to_string();
+                    //chap_num.push_str(&v["data"]["attributes"]["title"].to_string());
+                    b_tree_map.insert((&t.id).to_string(), chap_num.replace('"', "").parse().unwrap());
+                    println!("{}", t.id);
                 },
 
                 _ => println!("useless")
             }
         };
 
-        for i in linked_list.iter() {
-            let uri: String = "https://api.mangadex.org/chapter/".to_owned();
-            let req_url = uri + &i;
-            println!("{}", &req_url);
-            let res = reqwest::get(req_url).await.unwrap().text().await.unwrap();
-
-            let v: Value = serde_json::from_str(&res).unwrap();
-            let chap_num: String = v["data"]["attributes"]["chapter"].to_string();
-
-            println!("{}", chap_num);
-
-            hash_map.insert(i.to_string(), chap_num);
-        }
-
-        println!("End of Chapter HashMap Code");
-        hash_map
+        println!("End of Chapter BTree Code");
+        b_tree_map
     }
 
     fn get_hash(c: String) ->  Result<String, Box<dyn std::error::Error>> {
@@ -140,7 +134,7 @@ mod tui {
     // A SelectView is a scrollable list of items, from which the user can select
     // one.
 
-    pub fn run_load_list(v: std::collections::HashMap<String, String>, name: String) {
+    pub fn run_load_list(v: std::collections::BTreeMap<String, u32>, name: String) {
         println!("Loading the interface");
         let mut select = SelectView::new()
             // Center the text horizontally
@@ -148,7 +142,12 @@ mod tui {
             // Use keyboard to jump to the pressed letters
             .autojump();
 
-        select.add_all_str(v.values());
+        let mut hash_vec: Vec<(&String, &u32)> = v.iter().collect();
+        hash_vec.sort_by(|a, b| a.1.cmp(b.1));
+
+        let chap_nums = itertools::Itertools::sorted(v.values()).map(|s| s.to_string());
+
+        select.add_all_str(chap_nums);
 
         // Sets the callback for when "Enter" is pressed.
         select.set_on_submit(show_next_window);
@@ -169,7 +168,7 @@ mod tui {
         // Let's add a ResizedView to keep the list at a reasonable size
         // (it can scroll anyway).
         siv.add_layer(
-            Dialog::around(select.scrollable().fixed_size((20, 10)))
+            Dialog::around(select.scrollable())
                 .title(name)
                 .button("Quit", |s| s.quit()),
         );
@@ -187,3 +186,5 @@ mod tui {
         );
     }
 }
+
+//get highest chapter number and spawn numbers to that and dsplay

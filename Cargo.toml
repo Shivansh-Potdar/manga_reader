@@ -12,3 +12,4 @@ tokio = { version = "1", features = ["full"] }
 serde_json = "1.0"
 serde = { version = "1.0.104", features = ["derive"] }
 cursive = { git = "https://github.com/gyscos/cursive" , features = ["crossterm-backend"] , default-features = false }
+itertools = "0.8"
