@@ -16,6 +16,11 @@ mod manga {
     use serde_json::{Value};
     use serde::Deserialize;
 
+    //Logging
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+
     use crate::tui;
 
     #[derive(Debug, Deserialize)]
@@ -116,7 +121,10 @@ mod manga {
      * use after input from user
      */
     fn get_pages(c: String, h: &mut Vec<String>){
-        let res = reqwest::blocking::get(&c).unwrap();
+
+        let base_u: String = "https://api.mangadex.org/chapter/".to_string() + &c.to_string();
+
+        let res = reqwest::blocking::get(base_u).unwrap();
         let body = res.text().unwrap();
 
         let v: Value = serde_json::from_str(&body).unwrap();
@@ -127,6 +135,32 @@ mod manga {
 
         for i in chaps.iter(){
             h.push(i.to_string());
+        }
+    }
+
+    pub fn download_pages(c: String){
+        let base_u = "https://api.mangadex.org/chapter".to_string() + &c;
+        let hash = get_hash(c.to_string()).unwrap();
+        let base_url = get_base_url(String::from(&c)).unwrap();
+        let mut pages: Vec<String> = vec![];
+
+        get_pages(c, &mut pages);
+
+        for page in pages.iter_mut() {
+            *page = format!("{}{}/{}", base_url, hash, page).to_string().replace('"', "");
+        }
+
+        //Logging
+        std::fs::write("log.txt", "").unwrap();
+        let mut file = OpenOptions::new()
+            .append(true)
+            .write(true)
+            .open("log.txt")
+            .unwrap();
+
+        for i in pages{
+            file.write_all(i.as_bytes()).unwrap();
+            file.write("\n".as_bytes()).unwrap();
         }
     }
 }
@@ -152,6 +186,8 @@ mod tui {
     use std::time::Duration;
     use std::sync::mpsc;
 
+    //manga crate init
+    use crate::manga;
 
     // We'll use a SelectView here.
     //
@@ -170,8 +206,24 @@ mod tui {
         }
     }
 
+    pub struct IdHolder {
+        value: String
+    }
+
+    impl IdHolder {
+        pub fn set(val: String) -> Self {
+            IdHolder{
+                value: val
+            }
+        }
+    }
+
     lazy_static!{
         static ref MATCH_AGAINST: MutStatic<ValHolder> = {
+            MutStatic::new()
+        };
+
+        static ref ID_STRING: MutStatic<IdHolder> = {
             MutStatic::new()
         };
     }
@@ -243,9 +295,6 @@ mod tui {
         let mut text: String = String::new();
         let base_u = "https://api.mangadex.org/chapter/".to_string() + &id.to_string();
 
-        //parse id and get deets like name and shit
-        std::fs::write("log.txt", &base_u).expect("Could not write to file, check if content is in correct format");
-
         let (sender, reciver) = mpsc::channel::<String>();
 
         let req_handler = thread::spawn(move ||{
@@ -257,22 +306,42 @@ mod tui {
 
             text.push_str(&v["data"]["attributes"]["title"].to_string());
 
-            //use thread messages to do this(whats done down) instead, ref: https://doc.rust-lang.org/book/ch16-02-message-passing.html
-            //std::fs::write("chap_name.txt", text);
+            //use thread messages ref: https://doc.rust-lang.org/book/ch16-02-message-passing.html
 
             sender.send(text).unwrap();
             thread::sleep(Duration::from_micros(10));
         });
         req_handler.join().expect("Thread couldn't be joined");
 
+        ID_STRING.set(IdHolder::set(String::from(&id))).unwrap();
+
         siv.add_layer(
             Dialog::around(TextView::new(id))
             .title(reciver.recv().unwrap())
+            .button("Download", show_download_page)
+            .button("Quit", |s| s.quit()),
+        );
+    }
+
+    fn show_download_page(siv: &mut Cursive){
+        siv.pop_layer();
+
+        let download_handler = thread::spawn(|| {
+            let final_id: String = String::from(&ID_STRING.read().unwrap().value);
+            manga::download_pages(final_id);
+        });
+
+        download_handler.join().expect("Error in downloading");
+
+        siv.add_layer(
+            Dialog::around(TextView::new("Downloaded Chapter"))
+            .title("Download Page")
             .button("Quit", |s| s.quit()),
         );
     }
 }
 
-//show chapter name on next page
-//split id from double chapters
-//load discription and pages now
+//download pages to chapter folder with chapter name and number
+//init a global variable for the chapter id, number and name
+//set name and id in the global set
+//read bytes from Body of rqwest and wrte to file with chapter number
