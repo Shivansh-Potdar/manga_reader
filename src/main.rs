@@ -18,7 +18,6 @@ mod manga {
 
     //Logging
     use std::fs::OpenOptions;
-    use std::io::Write;
 
 
     use crate::tui;
@@ -31,7 +30,7 @@ mod manga {
 
     pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         println!("Running API");
-        let res = reqwest::get("https://api.mangadex.org/manga/7c60af75-fc54-4740-8a62-131c4776de4b").await?;
+        let res = reqwest::get("https://api.mangadex.org/manga/random").await?;
         let body = res.text().await?;
     
         let v: Value = serde_json::from_str(&body[..])?;
@@ -139,7 +138,11 @@ mod manga {
     }
 
     pub fn download_pages(c: String){
-        let base_u = "https://api.mangadex.org/chapter".to_string() + &c;
+
+        use std::io::prelude::*;
+        use std::io::Cursor;
+        use std::fs::File;
+
         let hash = get_hash(c.to_string()).unwrap();
         let base_url = get_base_url(String::from(&c)).unwrap();
         let mut pages: Vec<String> = vec![];
@@ -148,6 +151,15 @@ mod manga {
 
         for page in pages.iter_mut() {
             *page = format!("{}{}/{}", base_url, hash, page).to_string().replace('"', "");
+        }
+
+        //Downloading
+        for page in pages.iter(){
+            let response = reqwest::blocking::get(page).unwrap();
+            let mut file: File = File::create(format!("Downloads/{}", &page[page.len()-71..])).unwrap();
+
+            let mut content =  Cursor::new(response.bytes().unwrap());
+            std::io::copy(&mut content, &mut file).unwrap();
         }
 
         //Logging
@@ -340,8 +352,3 @@ mod tui {
         );
     }
 }
-
-//download pages to chapter folder with chapter name and number
-//init a global variable for the chapter id, number and name
-//set name and id in the global set
-//read bytes from Body of rqwest and wrte to file with chapter number

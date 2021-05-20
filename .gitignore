@@ -2,6 +2,7 @@
 /tests
 /.vscode
 /.idea
+/Downloads
 api.yaml
 log.txt
 chap_name.txt
