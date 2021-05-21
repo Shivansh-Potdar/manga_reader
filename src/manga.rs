@@ -2,11 +2,14 @@ use std::collections::{HashMap, BTreeMap};
 use serde_json::{Value};
 use serde::Deserialize;
 
-    //Logging
-    use std::fs::OpenOptions;
+//Input
+use std::io;
 
+//Logging
+use std::fs::OpenOptions;
 
-    use crate::tui;
+//UI
+use crate::tui;
 
 #[derive(Debug, Deserialize)]
 struct DataHolder {
@@ -15,8 +18,17 @@ struct DataHolder {
 }
 
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
+
+    println!("Enter manga ID: ");
+
+    let mut id = String::new();
+    match io::stdin().read_line(&mut id) {
+        Ok(n) => println!("ID: {} sucessfully recieved!", n),
+        Err(e) => println!("Error: {}", e),
+    }
+
     println!("Running API");
-    let res = reqwest::get("https://api.mangadex.org/manga/random").await?;
+    let res = reqwest::get(format!("https://api.mangadex.org/manga/{}", id)).await?;
     let body = res.text().await?;
 
     let v: Value = serde_json::from_str(&body[..])?;
